@@ -1,396 +1,571 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>EyeState Advanced MVP</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<title>EyeState 60-Second Nervous System Test</title>
 
-  <style>
-    body {
-      margin: 0;
-      background: #0f172a;
-      color: white;
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
-    h1 {
-      margin-top: 20px;
-      font-size: 2rem;
-    }
+<style>
 
-    .container {
-      position: relative;
-      width: 900px;
-      max-width: 95vw;
-      margin-top: 20px;
-    }
+body{
+    margin:0;
+    background:#0f172a;
+    color:white;
+    font-family:Arial,sans-serif;
+    overflow:hidden;
+}
 
-    video,
-    canvas {
-      width: 100%;
-      border-radius: 16px;
-    }
+#app{
+    width:100vw;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+}
 
-    canvas {
-      position: absolute;
-      left: 0;
-      top: 0;
-    }
+video{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+}
 
-    .stats {
-      margin-top: 20px;
-      width: 900px;
-      max-width: 95vw;
-      background: #1e293b;
-      padding: 20px;
-      border-radius: 16px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-    }
+canvas{
+    position:absolute;
+    width:100vw;
+    height:100vh;
+}
 
-    .card {
-      background: #334155;
-      padding: 16px;
-      border-radius: 12px;
-    }
+.screen{
+    z-index:10;
+    text-align:center;
+    max-width:800px;
+}
 
-    .label {
-      font-size: 0.9rem;
-      opacity: 0.7;
-    }
+h1{
+    font-size:3rem;
+    margin-bottom:20px;
+}
 
-    .value {
-      font-size: 1.8rem;
-      margin-top: 10px;
-      font-weight: bold;
-    }
+h2{
+    font-size:2rem;
+}
 
-    .status {
-      margin-top: 20px;
-      padding: 14px 24px;
-      border-radius: 12px;
-      font-size: 1.2rem;
-      background: #1e293b;
-    }
-  </style>
+p{
+    font-size:1.2rem;
+    opacity:.8;
+    line-height:1.6;
+}
+
+button{
+    padding:16px 32px;
+    border:none;
+    border-radius:12px;
+    background:#2563eb;
+    color:white;
+    font-size:1.1rem;
+    cursor:pointer;
+    margin-top:20px;
+}
+
+#dot{
+    width:30px;
+    height:30px;
+    background:white;
+    border-radius:50%;
+    position:absolute;
+    z-index:5;
+}
+
+#flash{
+    position:absolute;
+    width:100vw;
+    height:100vh;
+    background:white;
+    opacity:0;
+    pointer-events:none;
+    z-index:20;
+}
+
+#resultBox{
+    background:#1e293b;
+    padding:40px;
+    border-radius:20px;
+    width:600px;
+    max-width:90vw;
+}
+
+.metric{
+    margin-top:20px;
+    font-size:1.1rem;
+}
+
+.big{
+    font-size:3rem;
+    font-weight:bold;
+    margin-top:20px;
+}
+
+</style>
 </head>
 
 <body>
 
-<h1>EyeState Advanced MVP</h1>
+<div id="app">
 
-<div class="container">
-  <video class="input_video" autoplay playsinline></video>
-  <canvas class="output_canvas"></canvas>
-</div>
+<video class="input_video" autoplay playsinline></video>
+<canvas class="output_canvas"></canvas>
 
-<div class="stats">
+<div id="flash"></div>
+<div id="dot"></div>
 
-  <div class="card">
-    <div class="label">Blink Count</div>
-    <div class="value" id="blinkCount">0</div>
-  </div>
+<div class="screen" id="screen">
 
-  <div class="card">
-    <div class="label">Blink Rate</div>
-    <div class="value" id="blinkRate">0</div>
-  </div>
+<h1>EyeState</h1>
 
-  <div class="card">
-    <div class="label">Eye Aspect Ratio</div>
-    <div class="value" id="earValue">0.000</div>
-  </div>
+<p>
+60-second nervous system assessment using:
+<br><br>
+• Blink dynamics<br>
+• Pupil behavior<br>
+• Eye movement speed<br>
+• Smooth pursuit tracking
+</p>
 
-  <div class="card">
-    <div class="label">Estimated Pupil Size</div>
-    <div class="value" id="pupilSize">0.000</div>
-  </div>
-
-  <div class="card">
-    <div class="label">Saccade Speed</div>
-    <div class="value" id="saccadeSpeed">0.000</div>
-  </div>
-
-  <div class="card">
-    <div class="label">Estimated State</div>
-    <div class="value" id="stateText">Baseline</div>
-  </div>
+<button onclick="startTest()">
+Start Test
+</button>
 
 </div>
 
-<div class="status" id="status">
-  Initializing...
 </div>
 
 <script>
+
+const screen = document.getElementById("screen");
+const dot = document.getElementById("dot");
+const flash = document.getElementById("flash");
 
 const videoElement = document.querySelector('.input_video');
 const canvasElement = document.querySelector('.output_canvas');
 const canvasCtx = canvasElement.getContext('2d');
 
-const blinkCountEl = document.getElementById('blinkCount');
-const blinkRateEl = document.getElementById('blinkRate');
-const earValueEl = document.getElementById('earValue');
-const pupilSizeEl = document.getElementById('pupilSize');
-const saccadeSpeedEl = document.getElementById('saccadeSpeed');
-const stateTextEl = document.getElementById('stateText');
-const statusEl = document.getElementById('status');
+let currentPhase = 0;
 
 let blinkCount = 0;
 let blinkDetected = false;
 let blinkTimestamps = [];
 
+let pupilSamples = [];
+let saccadeSamples = [];
+let pursuitErrors = [];
+
 let previousIrisX = null;
 let previousIrisY = null;
 let previousTime = null;
 
+let targetX = window.innerWidth / 2;
+let targetY = window.innerHeight / 2;
+
 const EAR_THRESHOLD = 0.22;
 
-// LEFT EYE
 const LEFT_EYE = {
-  top: 159,
-  bottom: 145,
-  left: 33,
-  right: 133
+    top:159,
+    bottom:145,
+    left:33,
+    right:133
 };
 
-// RIGHT EYE
 const RIGHT_EYE = {
-  top: 386,
-  bottom: 374,
-  left: 362,
-  right: 263
+    top:386,
+    bottom:374,
+    left:362,
+    right:263
 };
 
-// LEFT IRIS LANDMARKS
-const LEFT_IRIS = [468, 469, 470, 471, 472];
+const LEFT_IRIS = [468,469,470,471,472];
 
-// RIGHT IRIS LANDMARKS
-const RIGHT_IRIS = [473, 474, 475, 476, 477];
+function distance(a,b){
 
-function distance(a, b) {
-  return Math.sqrt(
-    Math.pow(a.x - b.x, 2) +
-    Math.pow(a.y - b.y, 2)
-  );
-}
-
-function calculateEAR(landmarks, eye) {
-
-  const top = landmarks[eye.top];
-  const bottom = landmarks[eye.bottom];
-  const left = landmarks[eye.left];
-  const right = landmarks[eye.right];
-
-  const vertical = distance(top, bottom);
-  const horizontal = distance(left, right);
-
-  return vertical / horizontal;
-}
-
-function calculateIrisCenter(landmarks, irisPoints) {
-
-  let x = 0;
-  let y = 0;
-
-  irisPoints.forEach(index => {
-    x += landmarks[index].x;
-    y += landmarks[index].y;
-  });
-
-  return {
-    x: x / irisPoints.length,
-    y: y / irisPoints.length
-  };
-}
-
-function calculatePupilSize(landmarks) {
-
-  const irisTop = landmarks[469];
-  const irisBottom = landmarks[471];
-  const irisLeft = landmarks[468];
-  const irisRight = landmarks[470];
-
-  const vertical = distance(irisTop, irisBottom);
-  const horizontal = distance(irisLeft, irisRight);
-
-  return ((vertical + horizontal) / 2);
-}
-
-function getBlinkRate() {
-
-  const now = Date.now();
-
-  blinkTimestamps = blinkTimestamps.filter(
-    t => now - t < 60000
-  );
-
-  return blinkTimestamps.length;
-}
-
-function estimateState(blinkRate, saccadeSpeed, pupilSize) {
-
-  if (blinkRate > 25 || saccadeSpeed > 0.08) {
-    return "Fatigued / Overstimulated";
-  }
-
-  if (pupilSize > 0.012) {
-    return "High Cognitive Load";
-  }
-
-  if (blinkRate < 8) {
-    return "Focused";
-  }
-
-  return "Baseline";
-}
-
-function onResults(results) {
-
-  canvasElement.width = videoElement.videoWidth;
-  canvasElement.height = videoElement.videoHeight;
-
-  canvasCtx.save();
-
-  canvasCtx.clearRect(
-    0,
-    0,
-    canvasElement.width,
-    canvasElement.height
-  );
-
-  canvasCtx.drawImage(
-    results.image,
-    0,
-    0,
-    canvasElement.width,
-    canvasElement.height
-  );
-
-  if (results.multiFaceLandmarks.length > 0) {
-
-    const landmarks = results.multiFaceLandmarks[0];
-
-    drawConnectors(
-      canvasCtx,
-      landmarks,
-      FACEMESH_TESSELATION,
-      {
-        color: '#22d3ee',
-        lineWidth: 0.5
-      }
+    return Math.sqrt(
+        Math.pow(a.x-b.x,2)+
+        Math.pow(a.y-b.y,2)
     );
 
-    // ========= BLINK TRACKING =========
+}
 
-    const leftEAR = calculateEAR(landmarks, LEFT_EYE);
-    const rightEAR = calculateEAR(landmarks, RIGHT_EYE);
+function calculateEAR(landmarks, eye){
 
-    const avgEAR = (leftEAR + rightEAR) / 2;
+    const top = landmarks[eye.top];
+    const bottom = landmarks[eye.bottom];
+    const left = landmarks[eye.left];
+    const right = landmarks[eye.right];
 
-    earValueEl.innerText = avgEAR.toFixed(3);
+    const vertical = distance(top,bottom);
+    const horizontal = distance(left,right);
 
-    if (avgEAR < EAR_THRESHOLD && !blinkDetected) {
+    return vertical/horizontal;
+}
 
-      blinkDetected = true;
+function calculateIrisCenter(landmarks){
 
-      blinkCount++;
-      blinkTimestamps.push(Date.now());
+    let x = 0;
+    let y = 0;
 
-      blinkCountEl.innerText = blinkCount;
+    LEFT_IRIS.forEach(index=>{
+
+        x += landmarks[index].x;
+        y += landmarks[index].y;
+
+    });
+
+    return {
+        x:x/LEFT_IRIS.length,
+        y:y/LEFT_IRIS.length
+    };
+}
+
+function calculatePupilSize(landmarks){
+
+    const irisTop = landmarks[469];
+    const irisBottom = landmarks[471];
+    const irisLeft = landmarks[468];
+    const irisRight = landmarks[470];
+
+    const vertical = distance(irisTop, irisBottom);
+    const horizontal = distance(irisLeft, irisRight);
+
+    return (vertical + horizontal)/2;
+}
+
+function average(arr){
+
+    if(arr.length===0) return 0;
+
+    return arr.reduce((a,b)=>a+b,0)/arr.length;
+}
+
+function startTest(){
+
+    screen.innerHTML = `
+        <h2>Calibration</h2>
+        <p>Keep your face centered</p>
+    `;
+
+    currentPhase = 1;
+
+    setTimeout(startBaseline,5000);
+}
+
+function startBaseline(){
+
+    screen.innerHTML = `
+        <h2>Baseline Measurement</h2>
+        <p>Look at the center dot naturally</p>
+    `;
+
+    dot.style.display = "block";
+
+    targetX = window.innerWidth/2;
+    targetY = window.innerHeight/2;
+
+    moveDot(targetX,targetY);
+
+    currentPhase = 2;
+
+    setTimeout(startFlashTest,15000);
+}
+
+function startFlashTest(){
+
+    screen.innerHTML = `
+        <h2>Pupil Reflex Test</h2>
+        <p>Keep looking at the dot</p>
+    `;
+
+    currentPhase = 3;
+
+    let flashes = 0;
+
+    const interval = setInterval(()=>{
+
+        flash.style.opacity = 1;
+
+        setTimeout(()=>{
+            flash.style.opacity = 0;
+        },120);
+
+        flashes++;
+
+        if(flashes >= 5){
+
+            clearInterval(interval);
+
+            setTimeout(startSaccadeTest,2000);
+        }
+
+    },2000);
+
+}
+
+function startSaccadeTest(){
+
+    screen.innerHTML = `
+        <h2>Saccade Test</h2>
+        <p>Follow the dot as quickly as possible</p>
+    `;
+
+    currentPhase = 4;
+
+    let jumps = 0;
+
+    const interval = setInterval(()=>{
+
+        targetX =
+            Math.random() * (window.innerWidth - 200) + 100;
+
+        targetY =
+            Math.random() * (window.innerHeight - 200) + 100;
+
+        moveDot(targetX,targetY);
+
+        jumps++;
+
+        if(jumps >= 10){
+
+            clearInterval(interval);
+
+            setTimeout(startSmoothPursuit,1000);
+        }
+
+    },1000);
+
+}
+
+function startSmoothPursuit(){
+
+    screen.innerHTML = `
+        <h2>Smooth Pursuit</h2>
+        <p>Keep your eyes locked on the moving dot</p>
+    `;
+
+    currentPhase = 5;
+
+    let t = 0;
+
+    const interval = setInterval(()=>{
+
+        t += 0.05;
+
+        targetX =
+            window.innerWidth/2 +
+            Math.sin(t) * 300;
+
+        targetY =
+            window.innerHeight/2;
+
+        moveDot(targetX,targetY);
+
+    },16);
+
+    setTimeout(()=>{
+
+        clearInterval(interval);
+
+        finishTest();
+
+    },15000);
+
+}
+
+function finishTest(){
+
+    currentPhase = 6;
+
+    dot.style.display = "none";
+
+    const avgPupil = average(pupilSamples);
+    const avgSaccade = average(saccadeSamples);
+    const avgPursuit = average(pursuitErrors);
+
+    let score = 100;
+
+    score -= blinkCount * 0.5;
+    score -= avgSaccade * 300;
+    score -= avgPursuit * 4000;
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
+
+    let state = "";
+
+    if(score > 85){
+
+        state = "Recovered / Regulated";
+
+    } else if(score > 70){
+
+        state = "Baseline";
+
+    } else if(score > 50){
+
+        state = "Cognitively Loaded";
+
+    } else {
+
+        state = "Fatigued / Dysregulated";
     }
 
-    if (avgEAR > EAR_THRESHOLD) {
-      blinkDetected = false;
-    }
+    screen.innerHTML = `
 
-    // ========= PUPIL SIZE =========
+        <div id="resultBox">
 
-    const pupilSize = calculatePupilSize(landmarks);
+            <h1>Your State</h1>
 
-    pupilSizeEl.innerText = pupilSize.toFixed(4);
+            <div class="big">
+                ${state}
+            </div>
 
-    // ========= SACCADE SPEED =========
+            <div class="metric">
+                Nervous System Score: ${score}/100
+            </div>
 
-    const irisCenter = calculateIrisCenter(
-      landmarks,
-      LEFT_IRIS
+            <div class="metric">
+                Blink Count: ${blinkCount}
+            </div>
+
+            <div class="metric">
+                Avg Pupil Size: ${avgPupil.toFixed(4)}
+            </div>
+
+            <div class="metric">
+                Avg Saccade Speed: ${avgSaccade.toFixed(4)}
+            </div>
+
+            <div class="metric">
+                Smooth Pursuit Error: ${avgPursuit.toFixed(4)}
+            </div>
+
+        </div>
+
+    `;
+}
+
+function moveDot(x,y){
+
+    dot.style.left = `${x}px`;
+    dot.style.top = `${y}px`;
+}
+
+function onResults(results){
+
+    canvasElement.width = videoElement.videoWidth;
+    canvasElement.height = videoElement.videoHeight;
+
+    canvasCtx.save();
+
+    canvasCtx.clearRect(
+        0,
+        0,
+        canvasElement.width,
+        canvasElement.height
     );
 
-    let saccadeSpeed = 0;
+    if(results.multiFaceLandmarks.length > 0){
 
-    const currentTime = performance.now();
+        const landmarks = results.multiFaceLandmarks[0];
 
-    if (
-      previousIrisX !== null &&
-      previousTime !== null
-    ) {
+        const leftEAR =
+            calculateEAR(landmarks,LEFT_EYE);
 
-      const dx = irisCenter.x - previousIrisX;
-      const dy = irisCenter.y - previousIrisY;
+        const rightEAR =
+            calculateEAR(landmarks,RIGHT_EYE);
 
-      const dist = Math.sqrt(dx * dx + dy * dy);
+        const avgEAR =
+            (leftEAR + rightEAR)/2;
 
-      const dt = currentTime - previousTime;
+        if(avgEAR < EAR_THRESHOLD && !blinkDetected){
 
-      saccadeSpeed = dist / dt;
+            blinkDetected = true;
 
-      saccadeSpeedEl.innerText =
-        saccadeSpeed.toFixed(4);
+            blinkCount++;
+            blinkTimestamps.push(Date.now());
+        }
+
+        if(avgEAR > EAR_THRESHOLD){
+
+            blinkDetected = false;
+        }
+
+        const pupilSize =
+            calculatePupilSize(landmarks);
+
+        pupilSamples.push(pupilSize);
+
+        const irisCenter =
+            calculateIrisCenter(landmarks);
+
+        const currentTime = performance.now();
+
+        if(previousIrisX !== null){
+
+            const dx =
+                irisCenter.x - previousIrisX;
+
+            const dy =
+                irisCenter.y - previousIrisY;
+
+            const dist =
+                Math.sqrt(dx*dx + dy*dy);
+
+            const dt =
+                currentTime - previousTime;
+
+            const velocity =
+                dist/dt;
+
+            saccadeSamples.push(velocity);
+
+            if(currentPhase === 5){
+
+                const screenX =
+                    irisCenter.x * window.innerWidth;
+
+                const error =
+                    Math.abs(screenX - targetX);
+
+                pursuitErrors.push(
+                    error/window.innerWidth
+                );
+            }
+        }
+
+        previousIrisX = irisCenter.x;
+        previousIrisY = irisCenter.y;
+        previousTime = currentTime;
     }
 
-    previousIrisX = irisCenter.x;
-    previousIrisY = irisCenter.y;
-    previousTime = currentTime;
-
-    // ========= BLINK RATE =========
-
-    const blinkRate = getBlinkRate();
-
-    blinkRateEl.innerText = blinkRate;
-
-    // ========= STATE =========
-
-    const state = estimateState(
-      blinkRate,
-      saccadeSpeed,
-      pupilSize
-    );
-
-    stateTextEl.innerText = state;
-
-    statusEl.innerText = "Tracking Active";
-
-  } else {
-
-    statusEl.innerText = "No face detected";
-  }
-
-  canvasCtx.restore();
+    canvasCtx.restore();
 }
 
 const faceMesh = new FaceMesh({
 
-  locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-  }
+    locateFile:(file)=>{
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+    }
 
 });
 
 faceMesh.setOptions({
 
-  maxNumFaces: 1,
-  refineLandmarks: true,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
+    maxNumFaces:1,
+    refineLandmarks:true,
+    minDetectionConfidence:0.5,
+    minTrackingConfidence:0.5
 
 });
 
@@ -398,16 +573,16 @@ faceMesh.onResults(onResults);
 
 const camera = new Camera(videoElement, {
 
-  onFrame: async () => {
+    onFrame: async ()=>{
 
-    await faceMesh.send({
-      image: videoElement
-    });
+        await faceMesh.send({
+            image: videoElement
+        });
 
-  },
+    },
 
-  width: 1280,
-  height: 720
+    width:1280,
+    height:720
 
 });
 
