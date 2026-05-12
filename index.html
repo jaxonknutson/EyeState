@@ -623,11 +623,10 @@ function onResults(results){
             const dt =
                 currentTime - previousTime;
 
-            const velocity =
-                dist/dt;
+            const velocity = (dist / dt) * 1000;
 
-            saccadeSamples.push(velocity);
-
+            saccadeSamples.push(Math.max(0, velocity));
+            
             if(currentPhase === 5){
 
                 const screenX =
