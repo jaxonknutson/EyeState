@@ -80,6 +80,7 @@ button{
     border-radius:50%;
     position:absolute;
     z-index:5;
+    display:none;
 }
 
 #flash{
@@ -128,6 +129,8 @@ button{
 
 <h1>EyeState</h1>
 
+<p id="participantText"></p>
+
 <p>
 60-second nervous system assessment using:
 <br><br>
@@ -147,13 +150,40 @@ Start Test
 
 <script>
 
+// ==========================================
+// USER FROM URL
+// ==========================================
+
+const params =
+    new URLSearchParams(window.location.search);
+
+const user =
+    params.get("user") || "Unknown";
+
+document.getElementById("participantText").innerHTML =
+    `Participant: <strong>${user}</strong>`;
+
+// ==========================================
+// GOOGLE SHEETS SCRIPT URL
+// ==========================================
+
+const SCRIPT_URL =
+"https://script.google.com/macros/s/AKfycbyXQuZdRfbCAvpVqfF3b9pFpkO4KvZCihpD6gqGmCAz4Py8K0XlNE6YewU9rZfR-6yF/exec";
+
+// ==========================================
+
 const screen = document.getElementById("screen");
 const dot = document.getElementById("dot");
 const flash = document.getElementById("flash");
 
-const videoElement = document.querySelector('.input_video');
-const canvasElement = document.querySelector('.output_canvas');
-const canvasCtx = canvasElement.getContext('2d');
+const videoElement =
+    document.querySelector('.input_video');
+
+const canvasElement =
+    document.querySelector('.output_canvas');
+
+const canvasCtx =
+    canvasElement.getContext('2d');
 
 let currentPhase = 0;
 
@@ -190,13 +220,16 @@ const RIGHT_EYE = {
 
 const LEFT_IRIS = [468,469,470,471,472];
 
+// ==========================================
+// HELPERS
+// ==========================================
+
 function distance(a,b){
 
     return Math.sqrt(
         Math.pow(a.x-b.x,2)+
         Math.pow(a.y-b.y,2)
     );
-
 }
 
 function calculateEAR(landmarks, eye){
@@ -249,6 +282,40 @@ function average(arr){
 
     return arr.reduce((a,b)=>a+b,0)/arr.length;
 }
+
+function moveDot(x,y){
+
+    dot.style.left = `${x}px`;
+    dot.style.top = `${y}px`;
+}
+
+// ==========================================
+// GOOGLE SHEETS UPLOAD
+// ==========================================
+
+async function uploadResults(data){
+
+    try {
+
+        await fetch(SCRIPT_URL, {
+
+            method:"POST",
+
+            body:JSON.stringify(data)
+
+        });
+
+        console.log("Upload success");
+
+    } catch(err){
+
+        console.error(err);
+    }
+}
+
+// ==========================================
+// TEST FLOW
+// ==========================================
 
 function startTest(){
 
@@ -383,6 +450,10 @@ function startSmoothPursuit(){
 
 }
 
+// ==========================================
+// FINISH TEST
+// ==========================================
+
 function finishTest(){
 
     currentPhase = 6;
@@ -399,7 +470,10 @@ function finishTest(){
     score -= avgSaccade * 300;
     score -= avgPursuit * 4000;
 
-    score = Math.max(0, Math.min(100, Math.round(score)));
+    score = Math.max(
+        0,
+        Math.min(100, Math.round(score))
+    );
 
     let state = "";
 
@@ -420,6 +494,26 @@ function finishTest(){
         state = "Fatigued / Dysregulated";
     }
 
+    // ==========================================
+    // UPLOAD RESULTS
+    // ==========================================
+
+    uploadResults({
+
+        user:user,
+        score:score,
+        state:state,
+        blinkCount:blinkCount,
+        avgPupil:avgPupil,
+        avgSaccade:avgSaccade,
+        avgPursuit:avgPursuit
+
+    });
+
+    // ==========================================
+    // SHOW RESULTS
+    // ==========================================
+
     screen.innerHTML = `
 
         <div id="resultBox">
@@ -428,6 +522,10 @@ function finishTest(){
 
             <div class="big">
                 ${state}
+            </div>
+
+            <div class="metric">
+                Participant: ${user}
             </div>
 
             <div class="metric">
@@ -455,11 +553,9 @@ function finishTest(){
     `;
 }
 
-function moveDot(x,y){
-
-    dot.style.left = `${x}px`;
-    dot.style.top = `${y}px`;
-}
+// ==========================================
+// MEDIAPIPE
+// ==========================================
 
 function onResults(results){
 
@@ -477,7 +573,8 @@ function onResults(results){
 
     if(results.multiFaceLandmarks.length > 0){
 
-        const landmarks = results.multiFaceLandmarks[0];
+        const landmarks =
+            results.multiFaceLandmarks[0];
 
         const leftEAR =
             calculateEAR(landmarks,LEFT_EYE);
@@ -509,7 +606,8 @@ function onResults(results){
         const irisCenter =
             calculateIrisCenter(landmarks);
 
-        const currentTime = performance.now();
+        const currentTime =
+            performance.now();
 
         if(previousIrisX !== null){
 
